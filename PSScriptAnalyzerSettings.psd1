@@ -15,6 +15,11 @@
     )
 
     Rules        = @{
+        PSReviewUnusedParameter    = @{
+            # Toolkit scripts wrap Azure calls in Invoke-WithRetry scriptblocks;
+            # traverse them so parameters used there are recognized.
+            CommandsToTraverse = @('Invoke-WithRetry', 'ForEach-Object', 'Where-Object')
+        }
         PSPlaceOpenBrace           = @{
             Enable             = $true
             OnSameLine         = $true

@@ -10,7 +10,7 @@
 .PARAMETER SubscriptionId
     Target subscription. Defaults to the current Az context when omitted.
 .PARAMETER ExportPath
-    Optional existing directory to export results to (timestamped CSV/JSON filename).
+    Optional directory to export results to (created if missing; timestamped filename).
 .PARAMETER ExportFormat
     Export format when -ExportPath is supplied. Csv (default) or Json.
 .EXAMPLE
@@ -34,7 +34,6 @@ param(
     [string]$SubscriptionId,
 
     [Parameter()]
-    [ValidateScript({ Test-Path -Path $_ -PathType Container })]
     [string]$ExportPath,
 
     [Parameter()]
