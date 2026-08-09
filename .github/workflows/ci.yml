@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    name: Lint (PSScriptAnalyzer + ShellCheck)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          Install-Module PSScriptAnalyzer -Force -Scope CurrentUser
+          $findings = Invoke-ScriptAnalyzer -Path . -Recurse -Settings ./PSScriptAnalyzerSettings.psd1
+          if ($findings) {
+            $findings | Format-Table RuleName, Severity, ScriptName, Line -AutoSize | Out-String | Write-Host
+            throw "PSScriptAnalyzer found $($findings.Count) issue(s)"
+          }
+          Write-Host 'PSScriptAnalyzer: no findings'
+
+      - name: ShellCheck (azure-cli scripts)
+        run: |
+          if compgen -G "azure-cli/*.sh" > /dev/null; then
+            shellcheck --external-sources azure-cli/*.sh azure-cli/lib/*.sh
+          else
+            echo "No shell scripts yet - skipping"
+          fi
+
+  test:
+    name: Test (Pester)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Pester suites
+        shell: pwsh
+        run: |
+          Install-Module Pester -MinimumVersion 6.0 -Force -Scope CurrentUser
+          Install-Module PSScriptAnalyzer -Force -Scope CurrentUser
+          $configuration = New-PesterConfiguration -Hashtable (Import-PowerShellDataFile ./tests/PesterConfiguration.psd1)
+          Invoke-Pester -Configuration $configuration
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: testResults.xml

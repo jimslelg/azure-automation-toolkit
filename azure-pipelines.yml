@@ -1,0 +1,90 @@
+# Azure DevOps multi-stage pipeline: Validate -> Test -> Publish.
+# The Publish stage packages shared/ as AzToolkit.Common.zip in the exact layout
+# New-AzAutomationModule expects, so the artifact can be imported straight into an
+# Azure Automation Account.
+
+trigger:
+  branches:
+    include: [main]
+
+pr:
+  branches:
+    include: ['*']
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+  - stage: Validate
+    displayName: Validate
+    jobs:
+      - job: Lint
+        displayName: PSScriptAnalyzer + ShellCheck
+        steps:
+          - pwsh: |
+              Install-Module PSScriptAnalyzer -Force -Scope CurrentUser
+              $findings = Invoke-ScriptAnalyzer -Path . -Recurse -Settings ./PSScriptAnalyzerSettings.psd1
+              if ($findings) {
+                $findings | Format-Table RuleName, Severity, ScriptName, Line -AutoSize | Out-String | Write-Host
+                throw "PSScriptAnalyzer found $($findings.Count) issue(s)"
+              }
+              Write-Host 'PSScriptAnalyzer: no findings'
+            displayName: PSScriptAnalyzer
+
+          - bash: |
+              if compgen -G "azure-cli/*.sh" > /dev/null; then
+                shellcheck --external-sources azure-cli/*.sh azure-cli/lib/*.sh
+              else
+                echo "No shell scripts yet - skipping"
+              fi
+            displayName: ShellCheck
+
+  - stage: Test
+    displayName: Test
+    dependsOn: Validate
+    jobs:
+      - job: Pester
+        displayName: Pester unit + conformance suites
+        steps:
+          - pwsh: |
+              Install-Module Pester -MinimumVersion 6.0 -Force -Scope CurrentUser
+              Install-Module PSScriptAnalyzer -Force -Scope CurrentUser
+              $configuration = New-PesterConfiguration -Hashtable (Import-PowerShellDataFile ./tests/PesterConfiguration.psd1)
+              $configuration.TestResult.OutputFormat = 'NUnitXml'
+              $configuration.TestResult.OutputPath = 'testResults.nunit.xml'
+              Invoke-Pester -Configuration $configuration
+            displayName: Run Pester
+
+          - task: PublishTestResults@2
+            displayName: Publish test results
+            condition: always()
+            inputs:
+              testResultsFormat: NUnit
+              testResultsFiles: testResults.nunit.xml
+              failTaskOnFailedTests: true
+
+  - stage: Publish
+    displayName: Publish artifacts
+    dependsOn: Test
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - job: Package
+        displayName: Package module + scripts
+        steps:
+          - pwsh: |
+              # New-AzAutomationModule requires the zip to contain a folder named
+              # after the module with the psd1/psm1 at its root.
+              $staging = Join-Path $env:BUILD_ARTIFACTSTAGINGDIRECTORY 'AzToolkit.Common'
+              Copy-Item -Path ./shared -Destination $staging -Recurse
+              Compress-Archive -Path $staging -DestinationPath (Join-Path $env:BUILD_ARTIFACTSTAGINGDIRECTORY 'AzToolkit.Common.zip')
+              Remove-Item -Path $staging -Recurse -Force
+
+              Copy-Item -Path ./powershell -Destination (Join-Path $env:BUILD_ARTIFACTSTAGINGDIRECTORY 'powershell') -Recurse
+              Copy-Item -Path ./automation-runbooks -Destination (Join-Path $env:BUILD_ARTIFACTSTAGINGDIRECTORY 'automation-runbooks') -Recurse
+            displayName: Stage artifacts
+
+          - task: PublishBuildArtifacts@1
+            displayName: Publish build artifacts
+            inputs:
+              PathtoPublish: $(Build.ArtifactStagingDirectory)
+              ArtifactName: azure-automation-toolkit
