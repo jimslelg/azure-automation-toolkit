@@ -1,0 +1,23 @@
+# Script output artifacts
+output/
+logs/
+*.log
+
+# Test results and coverage
+testResults.xml
+coverage.xml
+coverage/
+
+# Key Vault backups (never commit secrets)
+*.kvbackup
+backups/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local environment overrides
+*.local.json
+.env

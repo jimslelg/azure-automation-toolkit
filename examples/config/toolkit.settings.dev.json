@@ -1,0 +1,12 @@
+{
+  "logging": {
+    "minimumLevel": "Debug"
+  },
+  "cleanup": {
+    "unattachedDiskMinimumAgeDays": 7,
+    "snapshotMinimumAgeDays": 30
+  },
+  "keyVault": {
+    "expiryWarningDays": 60
+  }
+}

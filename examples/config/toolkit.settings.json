@@ -1,0 +1,40 @@
+{
+  "azure": {
+    "subscriptionId": "",
+    "tenantId": "",
+    "defaultLocation": "canadacentral"
+  },
+  "logging": {
+    "directory": "./logs",
+    "minimumLevel": "Info"
+  },
+  "output": {
+    "directory": "./output",
+    "defaultFormat": "Csv"
+  },
+  "governance": {
+    "requiredTags": ["Environment", "Owner", "CostCenter", "Application"],
+    "exemptResourceTypes": [
+      "Microsoft.Network/networkWatchers",
+      "Microsoft.Insights/alertRules"
+    ]
+  },
+  "cleanup": {
+    "unattachedDiskMinimumAgeDays": 30,
+    "snapshotMinimumAgeDays": 90,
+    "resourceGroupStaleDays": 180
+  },
+  "compute": {
+    "idleVm": {
+      "cpuThresholdPercent": 5,
+      "lookbackDays": 14
+    },
+    "autoScheduleTagName": "AutoSchedule"
+  },
+  "keyVault": {
+    "expiryWarningDays": 30
+  },
+  "notifications": {
+    "teamsWebhookUrl": ""
+  }
+}
