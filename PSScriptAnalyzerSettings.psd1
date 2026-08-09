@@ -8,7 +8,10 @@
         # correct sink for the colored console output inside Write-ToolkitLog.
         'PSAvoidUsingWriteHost',
         # Report scripts naturally use plural nouns (Get-IdleVms, Get-UnusedNics).
-        'PSUseSingularNouns'
+        'PSUseSingularNouns',
+        # This is a PowerShell 7-only repository: UTF-8 without BOM is the
+        # cross-platform default and reads correctly on pwsh everywhere.
+        'PSUseBOMForUnicodeEncodedFile'
     )
 
     Rules        = @{
